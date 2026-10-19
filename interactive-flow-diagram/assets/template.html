@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{TITLE}}</title>
+<style>
+  :root {
+    --page-bg: #fff;
+    --page-fg: #1c1e21;
+    --page-muted: #606770;
+    color-scheme: light dark;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --page-bg: #1b1b1d; --page-fg: #e3e3e3; --page-muted: #a8abb0; }
+  }
+  html { background: var(--page-bg); }
+  body {
+    margin: 0 auto;
+    max-width: 900px;
+    padding: 40px 16px 64px;
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    color: var(--page-fg);
+    background: var(--page-bg);
+  }
+  h1 { margin: 0 0 8px; font-size: 2rem; line-height: 1.2; }
+  .intro { margin: 0 0 8px; max-width: 46em; line-height: 1.55; color: var(--page-muted); }
+  .flow-map { --flow-bg: var(--page-bg); }
+  footer { margin-top: 32px; font-size: 13px; line-height: 1.5; color: var(--page-muted); }
+  footer a { color: inherit; }
+{{CSS}}
+</style>
+</head>
+<body>
+<h1>{{TITLE}}</h1>
+{{INTRO}}
+<div id="flow" class="flow-map--auto"></div>
+{{FOOTER}}
+<script>
+{{JS}}
+</script>
+<script>
+{{CONFIG}}
+createFlowMap(document.getElementById('flow'), config);
+</script>
+</body>
+</html>

@@ -1,0 +1,340 @@
+/* flow-map.css: look of the interactive flow diagram.
+   All diagram lines (island outlines and connectors) share one colour and one width.
+   Theme: set the variables below to match the page. Dark mode turns on with [data-theme='dark'] or .dark
+   on any ancestor, or follows the system when the diagram element also has the class flow-map--auto. */
+.flow-map {
+  --flow-line: currentColor;
+  --flow-line-width: 1px;
+  --flow-bg: #fff;                 /* page background: islands use it, so drawings sit behind them */
+  --flow-surface: #fff;            /* lifted island */
+  --flow-muted: #606770;
+  --flow-soft: #dadde1;            /* header rule, chip and popup borders */
+  --flow-popup: #ebedf0;
+  --flow-shadow: rgba(0, 0, 0, 0.12);
+  --flow-off: #d64545;             /* switch off */
+  --flow-on: #34a853;              /* switch on */
+  --flow-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+  --flow-drawing-opacity: 0.18;
+  --flow-gap-y: 24px;
+  width: 100%;
+  margin-bottom: 1.5rem;
+  font-size: 15px;
+  line-height: 1.3;
+}
+
+[data-theme='dark'] .flow-map,
+.dark .flow-map {
+  --flow-bg: #1b1b1d;
+  --flow-surface: #242526;
+  --flow-muted: #a8abb0;
+  --flow-soft: #444950;
+  --flow-popup: #2c2d30;
+  --flow-shadow: rgba(0, 0, 0, 0.5);
+  --flow-drawing-opacity: 0.16;
+}
+
+@media (prefers-color-scheme: dark) {
+  .flow-map.flow-map--auto {
+    --flow-bg: #1b1b1d;
+    --flow-surface: #242526;
+    --flow-muted: #a8abb0;
+    --flow-soft: #444950;
+    --flow-popup: #2c2d30;
+    --flow-shadow: rgba(0, 0, 0, 0.5);
+    --flow-drawing-opacity: 0.16;
+  }
+}
+
+/* switch for planned connectors: above the diagram at the right edge, two text lines of air below */
+.flow-map__bar {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 2.6em;
+}
+
+.flow-map__switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 0;
+  font: inherit;
+  font-size: 12.5px;
+  color: inherit;
+  background: none;
+  border: none;
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.flow-map__switch-label {
+  min-width: 5.4em;   /* both labels take the same space */
+  text-align: right;
+}
+
+/* iOS proportions: pill track, round knob that almost fills it, soft knob shadow */
+.flow-map__switch-track {
+  position: relative;
+  flex: none;
+  width: 38px;
+  height: 23px;
+  background: var(--flow-off);
+  border-radius: 999px;
+  transition: background-color 0.25s ease;
+}
+
+.flow-map__switch-knob {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 19px;
+  height: 19px;
+  border-radius: 999px;
+  background: #fff;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2), 0 0 0 0.5px rgba(0, 0, 0, 0.06);
+  transition: transform 0.25s cubic-bezier(0.3, 0.7, 0.4, 1), width 0.15s ease;
+}
+
+.flow-map__switch[aria-checked="true"] .flow-map__switch-track { background: var(--flow-on); }
+.flow-map__switch[aria-checked="true"] .flow-map__switch-knob { transform: translateX(15px); }
+.flow-map__switch:active .flow-map__switch-knob { width: 23px; }   /* stretches while pressed */
+.flow-map__switch[aria-checked="true"]:active .flow-map__switch-knob { transform: translateX(11px); }
+.flow-map__switch:focus-visible { outline: none; }
+.flow-map__switch:focus-visible .flow-map__switch-track {
+  box-shadow: 0 0 0 2px var(--flow-bg), 0 0 0 3px var(--flow-line);
+}
+
+.flow-map__grid {
+  position: relative;
+  display: grid;
+  /* grid-template-columns is set by the script: lane | column | gutter | column | ... | lane */
+  row-gap: var(--flow-gap-y);
+  padding-bottom: 16px; /* room for connectors below the last row */
+}
+
+.flow-map__head {
+  align-self: end;
+  padding-bottom: 4px;
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--flow-muted);
+  border-bottom: var(--flow-line-width) solid var(--flow-soft);
+}
+
+.flow-map__divider {
+  align-self: center;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11.5px;
+  color: var(--flow-muted);
+  white-space: nowrap;
+}
+
+.flow-map__divider::before,
+.flow-map__divider::after {
+  content: "";
+  flex: 1;
+  border-top: var(--flow-line-width) dashed var(--flow-soft);
+}
+
+/* background drawing of the group in focus: faint, fades in slowly and crossfades between groups */
+.flow-map__backdrop {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.flow-map__drawing {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  transition: opacity 1.4s cubic-bezier(0.45, 0, 0.25, 1);
+}
+
+.flow-map__drawing.is-shown { opacity: var(--flow-drawing-opacity); }
+
+/* connectors */
+.flow-map__edges {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.flow-map__edges path {
+  fill: none;
+  stroke: var(--flow-line);
+  stroke-width: var(--flow-line-width);
+}
+
+.flow-map__edges .is-planned { stroke-dasharray: 5 4; }
+
+.flow-map__edges .flow-map__arrow,
+.flow-map__edges .flow-map__flow {
+  fill: var(--flow-line);
+  stroke: none;
+}
+
+.flow-map__edges text {
+  fill: var(--flow-muted);
+  font-size: 12px;
+}
+
+/* islands: hover lifts a little; keyboard focus lifts and gets a stronger outline */
+.flow-map__node {
+  position: relative;
+  z-index: 1;
+  display: block;
+  width: 100%;
+  margin: 0;
+  padding: 8px 12px;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  background: var(--flow-bg);
+  border: var(--flow-line-width) solid var(--flow-line);
+  border-radius: 8px;
+  cursor: default;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.flow-map__node.is-planned { border-style: dashed; }
+
+.flow-map__node:hover,
+.flow-map__node.is-open {
+  z-index: 2;
+  background: var(--flow-surface);
+  transform: scale(1.025);
+  box-shadow: 0 6px 18px var(--flow-shadow);
+}
+
+.flow-map__node:focus-visible {
+  z-index: 2;
+  background: var(--flow-surface);
+  outline: none;
+  transform: scale(1.025);
+  box-shadow: 0 0 0 1px var(--flow-line), 0 6px 18px var(--flow-shadow);
+}
+
+.flow-map__title {
+  display: block;
+  font-weight: 600;
+}
+
+.flow-map__node.is-code .flow-map__title {
+  font-family: var(--flow-mono);
+  font-size: 0.92em;
+  overflow-wrap: anywhere;
+}
+
+.flow-map__sub {
+  display: block;
+  margin-top: 2px;
+  font-size: 12.5px;
+  color: var(--flow-muted);
+}
+
+.flow-map__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 6px;
+}
+
+.flow-map__chip {
+  padding: 0 6px;
+  font-family: var(--flow-mono);
+  font-size: 11px;
+  line-height: 18px;
+  color: var(--flow-muted);
+  border: var(--flow-line-width) solid var(--flow-soft);
+  border-radius: 4px;
+}
+
+/* info window: grey, so it reads as separate from the diagram */
+.flow-map__popup {
+  position: absolute;
+  z-index: 5;
+  box-sizing: border-box;
+  padding: 12px 14px;
+  font-size: 14px;
+  line-height: 1.45;
+  background: var(--flow-popup);
+  border: var(--flow-line-width) solid var(--flow-soft);
+  border-radius: 8px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.1);
+  pointer-events: auto;
+}
+
+.flow-map__popup[hidden],
+.flow-map__more[hidden] { display: none; }
+
+.flow-map__popup h4 { margin: 0 0 2px; font-size: 15px; }
+.flow-map__popup .flow-map__kind { margin: 0 0 8px; font-size: 12px; color: var(--flow-muted); }
+.flow-map__popup p { margin: 0 0 6px; }
+.flow-map__popup p:last-child { margin-bottom: 0; }
+
+.flow-map__popup .flow-map__list {
+  margin: 8px 0 6px;
+  padding-left: 16px;
+}
+
+.flow-map__popup .flow-map__list.is-code {
+  font-family: var(--flow-mono);
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+
+.flow-map__popup .flow-map__status {
+  padding-top: 6px;
+  border-top: var(--flow-line-width) solid var(--flow-soft);
+}
+
+/* "More" / "Close" tag on the top right edge of the island in focus */
+.flow-map__more {
+  position: absolute;
+  z-index: 4;
+  padding: 1px 9px;
+  font: inherit;
+  font-size: 12px;
+  line-height: 18px;
+  color: inherit;
+  background: var(--flow-surface);
+  border: var(--flow-line-width) solid var(--flow-line);
+  border-radius: 999px;
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.flow-map__more:hover { background: var(--flow-popup); }
+.flow-map__more:focus-visible { outline: none; box-shadow: 0 0 0 1px var(--flow-line); }
+
+/* narrow (phones): set by the script from the real width */
+.flow-map.is-narrow {
+  --flow-gap-y: 18px;
+  font-size: 13px;
+}
+
+.flow-map.is-narrow .flow-map__node { padding: 6px 7px; }
+.flow-map.is-narrow .flow-map__sub,
+.flow-map.is-narrow .flow-map__chips { display: none; }   /* the info window has them */
+.flow-map.is-narrow .flow-map__head { font-size: 10.5px; letter-spacing: 0.03em; }
+.flow-map.is-narrow .flow-map__edges text { font-size: 10.5px; }
+.flow-map.is-narrow .flow-map__title { font-size: 12px; hyphens: auto; }
+.flow-map.is-narrow .flow-map__node.is-code .flow-map__title { font-size: 0.85em; overflow-wrap: normal; }
+
+@media (prefers-reduced-motion: reduce) {
+  .flow-map__switch-track,
+  .flow-map__switch-knob,
+  .flow-map__node,
+  .flow-map__drawing { transition: none; }
+}
